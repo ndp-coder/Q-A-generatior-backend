@@ -13,15 +13,21 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // --- Middleware ---
-app.use(cors()); // Allows your frontend to talk to this server
+// FIX: Configure CORS to specifically allow your Netlify frontend URL
+const corsOptions = {
+    // Replace this with your actual Netlify frontend URL
+    origin: 'https://qandagenerator.netlify.app', 
+    optionsSuccessStatus: 200 // For legacy browser support
+};
+app.use(cors(corsOptions));
 app.use(express.json()); // Allows the server to understand JSON data
 
 // --- Configurations ---
 // For deployment, it's better to use environment variables, but for simplicity, we'll place them here.
 // You MUST replace these placeholders with your actual keys!
-const GEMINI_API_KEY = 'AIzaSyACYPOzwTuTuaD6UAjM46X_VDzaG0w6-xs';
-const RAZORPAY_KEY_ID = 'rzp_test_hw3qip4z9xjYNM';
-const RAZORPAY_KEY_SECRET = '2FGvfwpbhSwQrZjc2Ovd3sK8';
+const GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY';
+const RAZORPAY_KEY_ID = 'YOUR_RAZORPAY_KEY_ID';
+const RAZORPAY_KEY_SECRET = 'YOUR_RAZORPAY_KEY_SECRET';
 
 
 // --- Razorpay Instance ---
