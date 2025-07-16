@@ -1,35 +1,28 @@
-// server.js - Unified Backend for Gemini and Razorpay
+// server.js - Final Unified Backend
 
-// --- Dependencies ---
 const express = require('express');
 const cors = require('cors');
 const Razorpay = require('razorpay');
 const axios = require('axios');
-const crypto = require('crypto'); // Required for payment verification
+const crypto = require('crypto');
 
-// --- Initialization ---
 const app = express();
-// Render provides the PORT environment variable
 const PORT = process.env.PORT || 3000;
 
-// --- Middleware ---
-// FIX: Configure CORS to specifically allow your Netlify frontend URL
+// --- Security: Environment Variables ---
+// Render will provide these values from the Environment section in your dashboard.
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
+
+// --- CORS Configuration ---
+// This allows your Netlify frontend to talk to this Render backend.
 const corsOptions = {
-    // Replace this with your actual Netlify frontend URL
-    origin: 'https://qandagenerator.netlify.app', 
-    optionsSuccessStatus: 200 // For legacy browser support
+    origin: 'https://qandagenerator.netlify.app', // Your Netlify URL
+    optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
-app.use(express.json()); // Allows the server to understand JSON data
-
-// --- Configurations ---
-// For deployment, it's better to use environment variables, but for simplicity, we'll place them here.
-// You MUST replace these placeholders with your actual keys!
-const GEMINI_API_KEY = 'AIzaSyACYPOzwTuTuaD6UAjM46X_VDzaG0w6-xs';
-const RAZORPAY_KEY_ID = 'rzp_test_hw3qip4z9xjYNM';
-const RAZORPAY_KEY_SECRET = '2FGvfwpbhSwQrZjc2Ovd3sK8';
-
-
+app.use(express.json());
 
 // --- Razorpay Instance ---
 const razorpay = new Razorpay({
@@ -37,91 +30,54 @@ const razorpay = new Razorpay({
     key_secret: RAZORPAY_KEY_SECRET,
 });
 
-// =================================================================
-// --- API ROUTES ---
-// =================================================================
+// --- API Routes ---
 
-/**
- * @route   GET /
- * @desc    Health check route to confirm the server is running
- */
 app.get('/', (req, res) => {
-    res.status(200).send('Q&A Generator Backend is running and healthy!');
+    res.status(200).send('Backend is running!');
 });
 
-
-/**
- * @route   POST /generate
- * @desc    Handles all requests to the Gemini AI API
- */
 app.post('/generate', async (req, res) => {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required.' });
-    if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY') {
-        return res.status(500).json({ error: 'Gemini API key is not configured on the server.' });
-    }
+    if (!GEMINI_API_KEY) return res.status(500).json({ error: 'Gemini API key not configured on server.' });
+    
     const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
     try {
         const payload = { contents: [{ parts: [{ text: prompt }] }] };
         const response = await axios.post(GEMINI_API_URL, payload);
-        console.log('✅ Gemini API call successful.');
         res.json(response.data);
     } catch (error) {
-        console.error('❌ Gemini API Error:', error.response ? error.response.data : error.message);
-        res.status(500).json({ error: 'Failed to fetch response from Gemini API.' });
+        res.status(500).json({ error: 'Failed to fetch from Gemini API.' });
     }
 });
 
-/**
- * @route   POST /create-order
- * @desc    Creates a payment order with Razorpay
- */
 app.post('/create-order', async (req, res) => {
     try {
         const { amount, currency = 'INR' } = req.body;
         if (!amount) return res.status(400).json({ error: 'Amount is required.' });
-        if (!RAZORPAY_KEY_ID || RAZORPAY_KEY_ID === 'YOUR_RAZORPAY_KEY_ID') {
-             return res.status(500).json({ error: 'Razorpay keys are not configured on the server.' });
-        }
-        const options = {
-            amount,
-            currency,
-            receipt: `receipt_order_${new Date().getTime()}`
-        };
+        if (!RAZORPAY_KEY_ID) return res.status(500).json({ error: 'Razorpay keys not configured.' });
+        
+        const options = { amount, currency, receipt: `receipt_${new Date().getTime()}` };
         const order = await razorpay.orders.create(options);
-        console.log('✅ Razorpay Order Created:', order.id);
         res.json(order);
     } catch (error) {
-        console.error('❌ Razorpay Error:', error);
-        res.status(500).json({ error: error.message || 'An internal server error occurred.' });
+        res.status(500).json({ error: error.message });
     }
 });
 
-/**
- * @route   POST /verify-payment
- * @desc    Verifies the payment signature
- */
 app.post('/verify-payment', (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-        return res.status(400).json({ status: 'failure', message: 'Missing payment details.' });
-    }
     const body = razorpay_order_id + "|" + razorpay_payment_id;
-    const expectedSignature = crypto
-        .createHmac('sha256', RAZORPAY_KEY_SECRET)
-        .update(body.toString())
-        .digest('hex');
+    const expectedSignature = crypto.createHmac('sha256', RAZORPAY_KEY_SECRET).update(body.toString()).digest('hex');
+    
     if (expectedSignature === razorpay_signature) {
-        console.log('✅ Payment Verification Successful.');
         res.json({ status: 'success' });
     } else {
-        console.error('❌ Payment Verification Failed.');
         res.status(400).json({ status: 'failure' });
     }
 });
 
-
 // --- Server Start ---
 app.listen(PORT, () => {
-    console.log(`✅ Unified server is running on port ${PORT}`);
+    console.log(`✅ Server is running on port ${PORT}`);
 });
