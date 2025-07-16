@@ -9,17 +9,20 @@ const crypto = require('crypto'); // Required for payment verification
 
 // --- Initialization ---
 const app = express();
-const PORT = 3000;
+// Render provides the PORT environment variable
+const PORT = process.env.PORT || 3000;
 
 // --- Middleware ---
-app.use(cors());
-app.use(express.json());
+app.use(cors()); // Allows your frontend to talk to this server
+app.use(express.json()); // Allows the server to understand JSON data
 
 // --- Configurations ---
-// IMPORTANT: Replace these placeholders with your actual keys!
+// For deployment, it's better to use environment variables, but for simplicity, we'll place them here.
+// You MUST replace these placeholders with your actual keys!
 const GEMINI_API_KEY = 'AIzaSyACYPOzwTuTuaD6UAjM46X_VDzaG0w6-xs';
 const RAZORPAY_KEY_ID = 'rzp_test_hw3qip4z9xjYNM';
 const RAZORPAY_KEY_SECRET = '2FGvfwpbhSwQrZjc2Ovd3sK8';
+
 
 // --- Razorpay Instance ---
 const razorpay = new Razorpay({
@@ -30,6 +33,15 @@ const razorpay = new Razorpay({
 // =================================================================
 // --- API ROUTES ---
 // =================================================================
+
+/**
+ * @route   GET /
+ * @desc    Health check route to confirm the server is running
+ */
+app.get('/', (req, res) => {
+    res.status(200).send('Q&A Generator Backend is running and healthy!');
+});
+
 
 /**
  * @route   POST /generate
@@ -55,7 +67,7 @@ app.post('/generate', async (req, res) => {
 
 /**
  * @route   POST /create-order
- * @desc    Creates a payment order with Razorpay (Step 1.1 from docs)
+ * @desc    Creates a payment order with Razorpay
  */
 app.post('/create-order', async (req, res) => {
     try {
@@ -80,47 +92,29 @@ app.post('/create-order', async (req, res) => {
 
 /**
  * @route   POST /verify-payment
- * @desc    Verifies the payment signature (Step 1.5 from docs)
+ * @desc    Verifies the payment signature
  */
 app.post('/verify-payment', (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
         return res.status(400).json({ status: 'failure', message: 'Missing payment details.' });
     }
-    
-    // Create the signature string as per Razorpay docs
     const body = razorpay_order_id + "|" + razorpay_payment_id;
-
-    // Create the expected signature
     const expectedSignature = crypto
         .createHmac('sha256', RAZORPAY_KEY_SECRET)
         .update(body.toString())
         .digest('hex');
-
-    // Compare the signatures
-    const isAuthentic = expectedSignature === razorpay_signature;
-
-    if (isAuthentic) {
+    if (expectedSignature === razorpay_signature) {
         console.log('✅ Payment Verification Successful.');
-        // Here you would typically save the payment details to your database
-        res.json({
-            status: 'success',
-            message: 'Payment verified successfully.',
-            orderId: razorpay_order_id,
-            paymentId: razorpay_payment_id,
-        });
+        res.json({ status: 'success' });
     } else {
         console.error('❌ Payment Verification Failed.');
-        res.status(400).json({
-            status: 'failure',
-            message: 'Invalid signature. Payment verification failed.'
-        });
+        res.status(400).json({ status: 'failure' });
     }
 });
 
 
 // --- Server Start ---
 app.listen(PORT, () => {
-    console.log(`✅ Unified server is running on http://localhost:${PORT}`);
+    console.log(`✅ Unified server is running on port ${PORT}`);
 });
