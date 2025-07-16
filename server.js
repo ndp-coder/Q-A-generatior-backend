@@ -25,9 +25,10 @@ app.use(express.json()); // Allows the server to understand JSON data
 // --- Configurations ---
 // For deployment, it's better to use environment variables, but for simplicity, we'll place them here.
 // You MUST replace these placeholders with your actual keys!
-const GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY';
-const RAZORPAY_KEY_ID = 'YOUR_RAZORPAY_KEY_ID';
-const RAZORPAY_KEY_SECRET = 'YOUR_RAZORPAY_KEY_SECRET';
+const GEMINI_API_KEY = 'AIzaSyACYPOzwTuTuaD6UAjM46X_VDzaG0w6-xs';
+const RAZORPAY_KEY_ID = 'rzp_test_hw3qip4z9xjYNM';
+const RAZORPAY_KEY_SECRET = '2FGvfwpbhSwQrZjc2Ovd3sK8';
+
 
 
 // --- Razorpay Instance ---
